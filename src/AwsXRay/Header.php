@@ -73,8 +73,12 @@ class Header
     private $additionalData;
 
 
-    public function __construct($traceId = null, $parentId = null, $sampledDecision = null, array $additionalData = [])
-    {
+    public function __construct(
+        $traceId = null,
+        $parentId = null,
+        $sampledDecision = self::UNKNOWN_SAMPLING,
+        array $additionalData = []
+    ) {
         $this->traceId = $traceId;
         $this->parentId = $parentId;
         $this->samplingDecision = $sampledDecision;
@@ -120,7 +124,7 @@ class Header
             $s[] = self::PARENT_PREFIX . $this->parentId;
         }
 
-        if ($this->samplingDecision !== null) {
+        if ($this->samplingDecision !== '') {
             $s[] = self::SAMPLED_PREFIX . $this->samplingDecision;
         }
 
@@ -143,18 +147,10 @@ class Header
 
     public function isSampled()
     {
-        if ($this->samplingDecision === self::SAMPLED) {
-            return true;
-        }
-
-        if ($this->samplingDecision === self::NOT_SAMPLED) {
-            return false;
-        }
-
-        return null;
+        return $this->samplingDecision === self::SAMPLED;
     }
 
-    public function isSampledRequested()
+    public function isSamplingRequested()
     {
         return $this->samplingDecision === self::REQUESTED_SAMPLING;
     }

@@ -23,7 +23,7 @@ final class HeaderTest extends Framework\TestCase
     {
         $header = Header::fromString('Sampled=?;Root=' . self::TRACE_ID . ';Parent=foo;Self=2;Foo=bar');
 
-        $this->assertNull($header->isSampled());
+        $this->assertTrue($header->isSamplingRequested());
         $this->assertEquals(self::TRACE_ID, $header->getTraceId());
         $this->assertEquals('foo', $header->getParentId());
         $this->assertNull($header->getAdditionalValue('Self'));
@@ -34,7 +34,7 @@ final class HeaderTest extends Framework\TestCase
     {
         $header = Header::fromString('Sampled=?; Root=' . self::TRACE_ID . '; Parent=foo; Self=2; Foo=bar');
 
-        $this->assertTrue($header->isSampledRequested());
+        $this->assertTrue($header->isSamplingRequested());
         $this->assertEquals(self::TRACE_ID, $header->getTraceId());
         $this->assertEquals('foo', $header->getParentId());
         $this->assertEquals('bar', $header->getAdditionalValue('Foo'));
