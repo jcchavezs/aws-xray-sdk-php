@@ -3,8 +3,9 @@
 namespace AwsXRayTests\Unit;
 
 use AwsXRay\Header;
+use AwsXRay\Plugins\PluginMetadata;
 use AwsXRay\Segment;
-use BadMethodCallException;
+use InvalidArgumentException;
 use PHPUnit\Framework;
 
 final class SegmentTest extends Framework\TestCase
@@ -53,7 +54,7 @@ final class SegmentTest extends Framework\TestCase
 
     public function testAddsAnnotationsFails()
     {
-        $this->expectException(BadMethodCallException::class);
+        $this->expectException(InvalidArgumentException::class);
         $segment = Segment::create(self::NAME);
         $segment->addAnnotation('key', ['a']);
     }
@@ -64,5 +65,32 @@ final class SegmentTest extends Framework\TestCase
         $segment->close();
         $this->assertArrayHasKey('end_time', $segment->jsonSerialize());
         $this->assertArrayNotHasKey('in_progress', $segment->jsonSerialize());
+    }
+
+    public function testAddPlugin()
+    {
+        $metadata = [
+            'elastic_beanstalk' => [
+                'environment_name' => 'test_environment_name',
+                'version_label' => 'test_version_label',
+                'deployment_id' => 'test_deployment_id',
+            ],
+            'ec2' => [
+                'instance_id' => 'test_instance_id',
+                'availability_zone' => 'test_availability_zone',
+            ],
+            'ecs' => [
+                'container' => 'test_container',
+            ],
+            'origin' => 'test_origin',
+        ];
+        $metadataPlugin = PluginMetadata::create($metadata);
+
+        $segment = Segment::create('test_name');
+        $segment->addPlugin($metadataPlugin);
+        $this->assertEquals('test_origin', $segment->jsonSerialize()['origin']);
+        $this->assertEquals($metadata['elastic_beanstalk'], $segment->jsonSerialize()['aws']['elastic_beanstalk']);
+        $this->assertEquals($metadata['ec2'], $segment->jsonSerialize()['aws']['ec2']);
+        $this->assertEquals($metadata['ecs'], $segment->jsonSerialize()['aws']['ecs']);
     }
 }
