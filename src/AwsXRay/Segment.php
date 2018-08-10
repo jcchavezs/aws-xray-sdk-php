@@ -2,7 +2,8 @@
 
 namespace AwsXRay;
 
-use BadMethodCallException;
+use AwsXRay\Plugins\PluginMetadata;
+use InvalidArgumentException;
 use Exception;
 
 final class Segment implements \JsonSerializable
@@ -87,6 +88,16 @@ final class Segment implements \JsonSerializable
      */
     private $parent;
 
+    /**
+     * @var string
+     */
+    private $origin;
+
+    /**
+     * @var array|string[][string]
+     */
+    private $aws = [];
+
     private function __construct()
     {
     }
@@ -146,12 +157,12 @@ final class Segment implements \JsonSerializable
     /**
      * @param string $key
      * @param string|int|float|bool $value
-     * @throws \BadMethodCallException if $value is not scalar
+     * @throws \InvalidArgumentException if $value is not scalar
      */
     public function addAnnotation($key, $value)
     {
         if (!is_string($value)) {
-            throw new BadMethodCallException(sprintf(
+            throw new InvalidArgumentException(sprintf(
                 'Failed to add annotation with key type: "%s" to subsegment "%s". key must be of type string.',
                 gettype($key),
                 $this->name
@@ -159,7 +170,7 @@ final class Segment implements \JsonSerializable
         }
 
         if (!is_scalar($value)) {
-            throw new BadMethodCallException(sprintf(
+            throw new InvalidArgumentException(sprintf(
                 'Failed to add annotation key: "%s" with value type: "%s" to subsegment "%s". value must be scalar',
                 (string) $key,
                 gettype($value),
@@ -180,6 +191,23 @@ final class Segment implements \JsonSerializable
         }
 
         $this->flush();
+    }
+
+    public function addPlugin(PluginMetadata $metadata)
+    {
+        if ($metadata->getEC2() !== null) {
+            $this->aws[PluginMetadata::EC2_SERVICE_NAME] = $metadata->getEC2();
+        }
+
+        if ($metadata->getECS() !== null) {
+            $this->aws[PluginMetadata::ECS_SERVICE_NAME] = $metadata->getECS();
+        }
+
+        if ($metadata->getBeanstalk() !== null) {
+            $this->aws[PluginMetadata::EB_SERVICE_NAME] = $metadata->getBeanstalk();
+        }
+
+        $this->origin = $metadata->getOrigin();
     }
 
     private static function newTraceId()
@@ -242,6 +270,14 @@ final class Segment implements \JsonSerializable
 
         if (!empty($this->metadata)) {
             $segment['metadata'] = $this->metadata;
+        }
+
+        if ($this->origin !== null) {
+            $segment['origin'] = $this->origin;
+        }
+
+        if (!empty($this->aws)) {
+            $segment['aws'] = $this->aws;
         }
 
         if (!empty($this->cause['exceptions'])) {
