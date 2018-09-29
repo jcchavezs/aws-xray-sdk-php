@@ -3,8 +3,8 @@
 namespace AwsXRay;
 
 use AwsXRay\Plugins\PluginMetadata;
-use InvalidArgumentException;
 use Exception;
+use InvalidArgumentException;
 
 final class Segment implements \JsonSerializable
 {
@@ -23,7 +23,7 @@ final class Segment implements \JsonSerializable
     private $traceId;
 
     /**
-     * @var string
+     * @var bool
      */
     private $sampled;
 
@@ -84,7 +84,7 @@ final class Segment implements \JsonSerializable
     private $subsegments = [];
 
     /**
-     * @var Segment
+     * @var Segment|null
      */
     private $parent;
 
@@ -92,6 +92,8 @@ final class Segment implements \JsonSerializable
      * @var string
      */
     private $origin;
+
+    private $namespace;
 
     /**
      * @var array|string[][string]
@@ -138,9 +140,10 @@ final class Segment implements \JsonSerializable
     /**
      * @param Segment $parent
      * @param string $name
+     * @param array $options
      * @return Segment
      */
-    public static function createFromParent(Segment $parent, $name)
+    public static function createFromParent(Segment $parent, $name, array $options = [])
     {
         $segment = new self();
         $segment->id = self::newSegmentId();
@@ -151,7 +154,16 @@ final class Segment implements \JsonSerializable
 
         $parent->subsegments[] = $segment;
 
+        self::resolveOptions($segment, $options);
+
         return $segment;
+    }
+
+    private static function resolveOptions(Segment $segment, $options)
+    {
+        if (array_key_exists('namespace', $options)) {
+            $segment->namespace = $options['namespace'];
+        }
     }
 
     /**
@@ -236,19 +248,38 @@ final class Segment implements \JsonSerializable
     /**
      * @return Segment|null
      */
-    private function getRoot()
+    public function getRoot()
     {
         return $this->parent === null ? $this : $this->parent->getRoot();
+    }
+
+    /**
+     * @return bool
+     */
+    public function isSampled()
+    {
+        return $this->sampled;
+    }
+
+    /**
+     * @return Segment[]|array;
+     */
+    public function getSubsegments()
+    {
+        return $this->subsegments;
     }
 
     public function jsonSerialize()
     {
         $segment = [
-            'trace_id' => $this->traceId,
             'id' => $this->id,
             'name' => $this->name,
             'start_time' => $this->startTime,
         ];
+
+        if ($this->parent !== null) {
+            $segment['trace_id'] = $this->traceId;
+        }
 
         if ($this->inProgress) {
             $segment['in_progress'] = true;
@@ -278,6 +309,10 @@ final class Segment implements \JsonSerializable
 
         if (!empty($this->aws)) {
             $segment['aws'] = $this->aws;
+        }
+
+        if ($this->namespace !== null) {
+            $segment['namespace'] = $this->namespace;
         }
 
         if (!empty($this->cause['exceptions'])) {
