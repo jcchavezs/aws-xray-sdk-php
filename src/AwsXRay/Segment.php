@@ -2,8 +2,9 @@
 
 namespace AwsXRay;
 
-use AwsXRay\Plugins\PluginMetadata;
 use Exception;
+use AwsXRay\Emitter;
+use AwsXRay\Plugins\PluginMetadata;
 use InvalidArgumentException;
 
 final class Segment implements \JsonSerializable
@@ -100,18 +101,30 @@ final class Segment implements \JsonSerializable
      */
     private $aws = [];
 
+    /**
+     * @var Emitter|null
+     */
+    private $emitter;
+
+    /**
+     * @var int
+     */
+    private $openSegments = 0;
+
     private function __construct()
     {
     }
 
     /**
+     * @param Emitter $emitter
      * @param string $name
      * @param Header|null $header
      * @return Segment
      */
-    public static function create($name, Header $header = null)
+    public static function create(Emitter $emitter, $name, Header $header = null)
     {
         $segment = new self();
+        $segment->emitter = $emitter;
 
         $name = substr($name, 0, 200);
 
@@ -202,6 +215,10 @@ final class Segment implements \JsonSerializable
             $this->addError($error);
         }
 
+        if ($this->parent !== null) {
+            $this->parent->accuseClosedSubsegment();
+        }
+
         $this->flush();
     }
 
@@ -225,15 +242,14 @@ final class Segment implements \JsonSerializable
     private static function newTraceId()
     {
         $random = \random_bytes(12);
-        return sprintf('1-%08x-%02x', time(), $random);
+        return sprintf('1-%8s-%24s', dechex(time()), bin2hex($random));
     }
 
     private static function newSegmentId()
     {
         $random = \random_bytes(8);
-        return sprintf('%02x', $random);
+        return bin2hex($random);
     }
-
 
     private function addError($error)
     {
@@ -243,10 +259,19 @@ final class Segment implements \JsonSerializable
 
     private function flush()
     {
+        if ($this->openSegments !== 0 || $this->endTime === null) {
+            return;
+        }
+
+        if ($this->parent !== null) {
+            $this->parent->flush();
+        }
+
+        $this->emitter->__invoke($this);
     }
 
     /**
-     * @return Segment|null
+     * @return Segment
      */
     public function getRoot()
     {
@@ -267,6 +292,22 @@ final class Segment implements \JsonSerializable
     public function getSubsegments()
     {
         return $this->subsegments;
+    }
+
+    /**
+     * @return string
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTraceId()
+    {
+        return $this->traceId;
     }
 
     public function jsonSerialize()
@@ -327,5 +368,11 @@ final class Segment implements \JsonSerializable
         }
 
         return $segment;
+    }
+
+
+    private function accuseClosedSubsegment()
+    {
+        $this->openSegments--;
     }
 }
