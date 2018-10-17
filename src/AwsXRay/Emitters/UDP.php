@@ -10,7 +10,14 @@ use Psr\Log\LoggerInterface;
 
 final class UDP implements Emitter
 {
+    /**
+     * @var string
+     */
     private $address;
+
+    /**
+     * @var int
+     */
     private $port;
 
     /**
