@@ -3,7 +3,6 @@
 namespace AwsXRay;
 
 use Exception;
-use AwsXRay\Emitter;
 use AwsXRay\Plugins\PluginMetadata;
 use InvalidArgumentException;
 
@@ -315,17 +314,13 @@ final class Segment implements \JsonSerializable
         }
     }
 
-    public function jsonSerialize()
+    private function toArrayBasicSegment()
     {
         $segment = [
             'id' => $this->id,
             'name' => $this->name,
             'start_time' => $this->startTime,
         ];
-
-        if ($this->parent !== null) {
-            $segment['trace_id'] = $this->traceId;
-        }
 
         if ($this->inProgress) {
             $segment['in_progress'] = true;
@@ -361,6 +356,12 @@ final class Segment implements \JsonSerializable
             $segment['namespace'] = $this->namespace;
         }
 
+        if (count($this->subsegments) > 0) {
+            $segment['subsegments'] = array_map(function (Segment $segment) {
+                return $segment->toArrayBasicSegment();
+            }, $this->subsegments);
+        }
+
         if (!empty($this->cause['exceptions'])) {
             $segment['cause'] = [
                 'working_directory' => $this->cause['working_directory'],
@@ -373,6 +374,16 @@ final class Segment implements \JsonSerializable
         }
 
         return $segment;
+    }
+
+    private function toArraySegment()
+    {
+        return ['trace_id' => $this->traceId] + $this->toArrayBasicSegment();
+    }
+
+    public function jsonSerialize()
+    {
+        return $this->toArraySegment();
     }
 
 
