@@ -102,9 +102,9 @@ final class Segment implements \JsonSerializable
     private $aws = [];
 
     /**
-     * @var Emitter|null
+     * @var Recorder|null
      */
-    private $emitter;
+    private $recorder;
 
     /**
      * @var int
@@ -116,15 +116,15 @@ final class Segment implements \JsonSerializable
     }
 
     /**
-     * @param Emitter $emitter
+     * @param Recorder $recorder
      * @param string $name
      * @param Header|null $header
      * @return Segment
      */
-    public static function create(Emitter $emitter, $name, Header $header = null)
+    public static function create(Recorder $recorder, $name, Header $header = null)
     {
         $segment = new self();
-        $segment->emitter = $emitter;
+        $segment->recorder = $recorder;
 
         $name = substr($name, 0, 200);
 
@@ -166,6 +166,7 @@ final class Segment implements \JsonSerializable
         $segment->inProgress = true;
 
         $parent->subsegments[] = $segment;
+        $parent->openSegments++;
 
         self::resolveOptions($segment, $options);
 
@@ -215,11 +216,13 @@ final class Segment implements \JsonSerializable
             $this->addError($error);
         }
 
+        if ($this->recorder !== null) {
+            $this->recorder->closeSegment($this);
+        }
+
         if ($this->parent !== null) {
             $this->parent->accuseClosedSubsegment();
         }
-
-        $this->flush();
     }
 
     public function addPlugin(PluginMetadata $metadata)
@@ -255,19 +258,6 @@ final class Segment implements \JsonSerializable
     {
         $this->fault = true;
         $this->cause['exceptions'][] = $error;
-    }
-
-    private function flush()
-    {
-        if ($this->openSegments !== 0 || $this->endTime === null) {
-            return;
-        }
-
-        if ($this->parent !== null) {
-            $this->parent->flush();
-        }
-
-        $this->emitter->__invoke($this);
     }
 
     /**
@@ -308,6 +298,21 @@ final class Segment implements \JsonSerializable
     public function getTraceId()
     {
         return $this->traceId;
+    }
+
+    public function removeFromParent()
+    {
+        if ($this->parent === null) {
+            return;
+        }
+
+        foreach ($this->parent->subsegments as $i => $segment) {
+            if ($segment->id === $this->id) {
+                unset($this->parent->subsegments[$i]);
+                $this->parent->openSegments--;
+                return;
+            }
+        }
     }
 
     public function jsonSerialize()
