@@ -5,11 +5,27 @@ services:
 
 language: php
 
-php:
-  - '5.6'
-  - '7.0'
-  - '7.1'
-  - '7.2'
+matrix:
+  include:
+    - php: '5.6'
+      env:
+        - RUN_STATIC_ANALYSIS="false"
+
+    - php: '7.0'
+      env:
+        - RUN_STATIC_ANALYSIS="false"
+
+    - php: '7.1'
+      env:
+        - RUN_STATIC_ANALYSIS="true"
+
+    - php: '7.2'
+      env:
+        - RUN_STATIC_ANALYSIS="true"
+
+    - php: '7.3'
+      env:
+        - RUN_STATIC_ANALYSIS="true"
 
 cache:
   directories:
@@ -17,7 +33,9 @@ cache:
 
 install:
   - composer install
+  - if [[ ${RUN_STATIC_ANALYSIS} == "true" ]]; then composer require phpstan/phpstan; fi
 
 script:
   - composer lint
   - composer test
+  - if [[ ${RUN_STATIC_ANALYSIS} == "true" ]]; then composer static-check; fi

@@ -42,6 +42,7 @@
         ],
         "test-unit": "phpunit --colors=always --configuration=phpunit.xml --testsuite=unit",
         "test-integration": "phpunit --colors=always --configuration=phpunit.xml --testsuite=integration",
-        "run-daemon": "docker build -t xray-daemon ./tests/Integration/daemon && docker run -v ~/.aws/:/root/.aws/:ro --net=host -e AWS_REGION=us-east-2 --name xray-daemon -p 2000:2000/udp --rm -d xray-daemon -o"
+        "run-daemon": "docker build -t xray-daemon ./tests/Integration/daemon && docker run -v ~/.aws/:/root/.aws/:ro --net=host -e AWS_REGION=us-east-2 --name xray-daemon -p 2000:2000/udp --rm -d xray-daemon -o",
+        "static-check": "phpstan analyse src --level 4"
     }
 }
