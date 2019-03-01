@@ -7,7 +7,7 @@ use AwsXRay\Plugins\PluginMetadata;
 use AwsXRay\Segment;
 use InvalidArgumentException;
 use PHPUnit\Framework;
-use AwsXRay\Emitters\Noop;
+use AwsXRay\Recorder;
 
 final class SegmentTest extends Framework\TestCase
 {
@@ -18,7 +18,7 @@ final class SegmentTest extends Framework\TestCase
 
     public function testCreateSegmentWithoutHeader()
     {
-        $segment = Segment::create(new Noop(), self::NAME);
+        $segment = Segment::create(new Recorder(), self::NAME);
 
         $this->assertEquals(16, strlen($segment->getId()));
         $this->assertEquals(1 + 1 + 8 + 1 + 24, strlen($segment->getTraceId()));
@@ -36,7 +36,7 @@ final class SegmentTest extends Framework\TestCase
     {
         $header = new Header(self::TRACE_ID, self::PARENT_ID);
 
-        $segment = Segment::create(new Noop(), self::NAME, $header);
+        $segment = Segment::create(new Recorder(), self::NAME, $header);
 
         $this->assertArraySubset(
             [
@@ -51,7 +51,7 @@ final class SegmentTest extends Framework\TestCase
 
     public function testAddsAnnotationsSuccess()
     {
-        $segment = Segment::create(new Noop(), self::NAME);
+        $segment = Segment::create(new Recorder(), self::NAME);
         $segment->addAnnotation('key', 'value');
         $this->assertEquals(['key' => 'value'], $segment->jsonSerialize()['annotations']);
     }
@@ -59,13 +59,13 @@ final class SegmentTest extends Framework\TestCase
     public function testAddsAnnotationsFails()
     {
         $this->expectException(InvalidArgumentException::class);
-        $segment = Segment::create(new Noop(), self::NAME);
+        $segment = Segment::create(new Recorder(), self::NAME);
         $segment->addAnnotation('key', ['a']);
     }
 
     public function testCloseSuccess()
     {
-        $segment = Segment::create(new Noop(), self::NAME);
+        $segment = Segment::create(new Recorder(), self::NAME);
         $segment->close();
         $this->assertArrayHasKey('end_time', $segment->jsonSerialize());
         $this->assertArrayNotHasKey('in_progress', $segment->jsonSerialize());
@@ -90,7 +90,7 @@ final class SegmentTest extends Framework\TestCase
         ];
         $metadataPlugin = PluginMetadata::create($metadata);
 
-        $segment = Segment::create(new Noop(), 'test_name');
+        $segment = Segment::create(new Recorder(), 'test_name');
         $segment->addPlugin($metadataPlugin);
         $this->assertEquals('test_origin', $segment->jsonSerialize()['origin']);
         $this->assertEquals($metadata['elastic_beanstalk'], $segment->jsonSerialize()['aws']['elastic_beanstalk']);
