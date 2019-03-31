@@ -21,8 +21,8 @@ class Recorder
     private $segments = [];
 
     public function __construct(
-        PluginMetadata $pluginMetadata = null,
-        Emitter $emitter = null
+        ?PluginMetadata $pluginMetadata = null,
+        ?Emitter $emitter = null
     ) {
         $this->pluginMetadata = $pluginMetadata;
         $this->emitter = $emitter ?: new Noop();
@@ -33,7 +33,7 @@ class Recorder
      * @param Header|null $header
      * @return Segment
      */
-    public function beginSegment($name, Header $header = null)
+    public function beginSegment(string $name, ?Header $header = null): Segment
     {
         $segment = Segment::create($this, (string) $name, $header);
 
@@ -46,30 +46,33 @@ class Recorder
         return $segment;
     }
 
-    /**
-     * @param Segment $segment
-     * @param string $name
-     * @return Segment
-     */
-    public function beginSubsegment(Segment $segment, $name)
+    public function beginSubsegment(Segment $segment, string $name): Segment
     {
         return Segment::createFromParent($segment, (string) $name);
     }
 
-    /**
-     * @return Segment|null
-     */
-    public function getCurrentSegment()
+    public function beginNextSegment(string $name): Segment
+    {
+        $currentSubsegment = $this->getCurrentSubsegment();
+        if ($currentSubsegment === null) {
+            return $this->beginSegment($name);
+        }
+        
+        return $this->beginSubsegment($currentSubsegment, $name);
+    }
+
+    public function getCurrentSegment(): ?Segment
     {
         return count($this->segments) === 0 ? null : end($this->segments);
     }
 
-    /**
-     * @return Segment|null
-     */
-    public function getCurrentSubsegment()
+    public function getCurrentSubsegment(): ?Segment
     {
         $currentSubsegment = $this->getCurrentSegment();
+        if ($currentSubsegment === null) {
+            return null;
+        }
+        
         while (true) {
             $subSegments = $currentSubsegment->getSubsegments();
             if (count($subSegments) == 0) {

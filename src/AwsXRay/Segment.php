@@ -120,7 +120,7 @@ final class Segment implements \JsonSerializable
      * @param Header|null $header
      * @return Segment
      */
-    public static function create(Recorder $recorder, $name, Header $header = null)
+    public static function create(Recorder $recorder, string $name, ?Header $header = null): Segment
     {
         $segment = new self();
         $segment->recorder = $recorder;
@@ -155,7 +155,7 @@ final class Segment implements \JsonSerializable
      * @param array $options
      * @return Segment
      */
-    public static function createFromParent(Segment $parent, $name, array $options = [])
+    public static function createFromParent(Segment $parent, string $name, array $options = []): Segment
     {
         $segment = new self();
         $segment->id = self::newSegmentId();
@@ -172,7 +172,7 @@ final class Segment implements \JsonSerializable
         return $segment;
     }
 
-    private static function resolveOptions(Segment $segment, $options)
+    private static function resolveOptions(Segment $segment, array $options)
     {
         if (array_key_exists('namespace', $options)) {
             $segment->namespace = $options['namespace'];
@@ -184,16 +184,8 @@ final class Segment implements \JsonSerializable
      * @param string|int|float|bool $value
      * @throws \InvalidArgumentException if $value is not scalar
      */
-    public function addAnnotation($key, $value)
+    public function addAnnotation(string $key, $value): void
     {
-        if (!is_string($value)) {
-            throw new InvalidArgumentException(sprintf(
-                'Failed to add annotation with key type: "%s" to subsegment "%s". key must be of type string.',
-                gettype($key),
-                $this->name
-            ));
-        }
-
         if (!is_scalar($value)) {
             throw new InvalidArgumentException(sprintf(
                 'Failed to add annotation key: "%s" with value type: "%s" to subsegment "%s". value must be scalar',
@@ -206,7 +198,7 @@ final class Segment implements \JsonSerializable
         $this->annotations[$key] = $value;
     }
 
-    public function close($error = null)
+    public function close($error = null): void
     {
         $this->endTime = microtime(true);
         $this->inProgress = false;
@@ -224,7 +216,7 @@ final class Segment implements \JsonSerializable
         }
     }
 
-    public function addPlugin(PluginMetadata $metadata)
+    public function addPlugin(PluginMetadata $metadata): void
     {
         if ($metadata->getEC2() !== null) {
             $this->aws[PluginMetadata::EC2_SERVICE_NAME] = $metadata->getEC2();
@@ -241,19 +233,19 @@ final class Segment implements \JsonSerializable
         $this->origin = $metadata->getOrigin();
     }
 
-    private static function newTraceId()
+    private static function newTraceId(): string
     {
         $random = \random_bytes(12);
         return sprintf('1-%8s-%24s', dechex(time()), bin2hex($random));
     }
 
-    private static function newSegmentId()
+    private static function newSegmentId(): string
     {
         $random = \random_bytes(8);
         return bin2hex($random);
     }
 
-    private function addError($error)
+    private function addError($error): void
     {
         $this->fault = true;
         $this->cause['exceptions'][] = $error;
@@ -262,7 +254,7 @@ final class Segment implements \JsonSerializable
     /**
      * @return Segment
      */
-    public function getRoot()
+    public function getRoot(): Segment
     {
         return $this->parent === null ? $this : $this->parent->getRoot();
     }
@@ -270,7 +262,7 @@ final class Segment implements \JsonSerializable
     /**
      * @return bool
      */
-    public function isSampled()
+    public function isSampled(): bool
     {
         return $this->sampled;
     }
@@ -278,7 +270,7 @@ final class Segment implements \JsonSerializable
     /**
      * @return Segment[]|array;
      */
-    public function getSubsegments()
+    public function getSubsegments(): array
     {
         return $this->subsegments;
     }
@@ -286,7 +278,7 @@ final class Segment implements \JsonSerializable
     /**
      * @return string
      */
-    public function getId()
+    public function getId(): string
     {
         return $this->id;
     }
@@ -294,12 +286,12 @@ final class Segment implements \JsonSerializable
     /**
      * @return string
      */
-    public function getTraceId()
+    public function getTraceId(): string
     {
         return $this->traceId;
     }
 
-    public function removeFromParent()
+    public function removeFromParent(): void
     {
         if ($this->parent === null) {
             return;
@@ -314,7 +306,7 @@ final class Segment implements \JsonSerializable
         }
     }
 
-    private function toArrayBasicSegment()
+    private function toArrayBasicSegment(): array
     {
         $segment = [
             'id' => $this->id,
@@ -328,7 +320,7 @@ final class Segment implements \JsonSerializable
             $segment['end_time'] = $this->endTime;
         }
 
-        if ($this->endTime !== null) {
+        if ($this->endTime !== null && $this->error !== null) {
             $segment['error'] = $this->error;
         }
 
@@ -376,7 +368,7 @@ final class Segment implements \JsonSerializable
         return $segment;
     }
 
-    private function toArraySegment()
+    private function toArraySegment(): array
     {
         return ['trace_id' => $this->traceId] + $this->toArrayBasicSegment();
     }
@@ -387,7 +379,7 @@ final class Segment implements \JsonSerializable
     }
 
 
-    private function accuseClosedSubsegment()
+    private function accuseClosedSubsegment(): void
     {
         $this->openSegments--;
     }

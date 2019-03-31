@@ -70,14 +70,14 @@ class Header
     /**
      * @var array
      */
-    private $additionalData;
+    private $additionalData = [];
 
 
     public function __construct(
         $traceId = null,
         $parentId = null,
-        $sampledDecision = self::UNKNOWN_SAMPLING,
-        array $additionalData = []
+        ?string $sampledDecision = self::UNKNOWN_SAMPLING,
+        ?array $additionalData = []
     ) {
         $this->traceId = $traceId;
         $this->parentId = $parentId;
@@ -85,7 +85,7 @@ class Header
         $this->additionalData = $additionalData;
     }
 
-    public static function fromString($s)
+    public static function fromString($s): Header
     {
         $pieces = explode(';', $s);
 
@@ -135,32 +135,32 @@ class Header
         return implode(';', $s);
     }
 
-    public function getTraceId()
+    public function getTraceId(): string
     {
         return $this->traceId;
     }
 
-    public function getParentId()
+    public function getParentId(): string
     {
         return $this->parentId;
     }
 
-    public function isSampled()
+    public function isSampled(): bool
     {
         return $this->samplingDecision === self::SAMPLED;
     }
 
-    public function isSamplingRequested()
+    public function isSamplingRequested(): bool
     {
         return $this->samplingDecision === self::REQUESTED_SAMPLING;
     }
 
-    public function getAdditionalData()
+    public function getAdditionalData(): array
     {
         return $this->additionalData;
     }
 
-    public function getAdditionalValue($key)
+    public function getAdditionalValue($key): ?string
     {
         return array_key_exists($key, $this->additionalData)
             ? $this->additionalData[$key] : null;
