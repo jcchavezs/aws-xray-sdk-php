@@ -9,6 +9,8 @@ use Psr\Log\LoggerInterface;
 
 final class UDP implements Emitter
 {
+    private const HEADER = "{\"format\": \"json\", \"version\": 1}\n";
+
     /**
      * @var string
      */
@@ -49,17 +51,18 @@ final class UDP implements Emitter
     public function sendSegments(string $serializedSegments)
     {
         $this->logger->debug($serializedSegments);
-        
+
         $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
         if ($socket === false) {
             $this->logger->error(sprintf("Could not create the socket: %s", socket_last_error()));
             return;
         }
 
+        $serializedSegmentsWithHeader = self::HEADER . $serializedSegments;
         $isSent = socket_sendto(
             $socket,
-            $serializedSegments,
-            strlen($serializedSegments),
+            $serializedSegmentsWithHeader,
+            strlen($serializedSegmentsWithHeader),
             0,
             $this->address,
             $this->port

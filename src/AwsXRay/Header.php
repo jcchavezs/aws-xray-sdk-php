@@ -135,12 +135,12 @@ class Header
         return implode(';', $s);
     }
 
-    public function getTraceId(): string
+    public function getTraceId(): ?string
     {
         return $this->traceId;
     }
 
-    public function getParentId(): string
+    public function getParentId(): ?string
     {
         return $this->parentId;
     }
