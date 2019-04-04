@@ -4,12 +4,13 @@ namespace AwsXRay\Emitters;
 
 use AwsXRay\Emitter;
 use AwsXRay\Segment;
-use RuntimeException;
 use Psr\Log\NullLogger;
 use Psr\Log\LoggerInterface;
 
 final class UDP implements Emitter
 {
+    private const HEADER = "{\"format\": \"json\", \"version\": 1}\n";
+
     /**
      * @var string
      */
@@ -30,43 +31,49 @@ final class UDP implements Emitter
      * @param int $port
      * @param LoggerInterface $logger
      */
-    public function __construct($address, $port, LoggerInterface $logger = null)
+    public function __construct(string $address, int $port, ?LoggerInterface $logger = null)
     {
-        $this->address = (string) $address;
-        $this->port = (int) $port;
+        $this->address = $address;
+        $this->port = $port;
         $this->logger = $logger ?: new NullLogger();
     }
 
     public function __invoke(Segment $segment)
     {
         if (!$segment->getRoot()->isSampled()) {
+            $this->logger->debug('unsampled segment');
             return;
         }
-    
-        register_shutdown_function([$this, 'sendSegments'], json_encode($segment));
+        $this->sendSegments(json_encode($segment));
+        //register_shutdown_function([$this, 'sendSegments'], json_encode($segment));
     }
 
-    public function sendSegments($serializedSegments)
+    public function sendSegments(string $serializedSegments)
     {
-        if ($socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP)) {
-            $isSent = socket_sendto(
-                $socket,
-                $serializedSegments,
-                strlen($serializedSegments),
-                0,
-                $this->address,
-                $this->port
-            );
-            
-            if ($isSent === false) {
-                $this->logger->error("Could not send the segments.");
-                return;
-            }
+        $this->logger->debug($serializedSegments);
 
-            socket_close($socket);
-        } else {
-            $this->logger->error("Could not create the socket.");
+        $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+        if ($socket === false) {
+            $this->logger->error(sprintf("Could not create the socket: %s", socket_last_error()));
             return;
         }
+
+        $serializedSegmentsWithHeader = self::HEADER . $serializedSegments;
+        $isSent = socket_sendto(
+            $socket,
+            $serializedSegmentsWithHeader,
+            strlen($serializedSegmentsWithHeader),
+            0,
+            $this->address,
+            $this->port
+        );
+        
+        if ($isSent === false) {
+            socket_close($socket);
+            $this->logger->error("Could not send the segments.");
+            return;
+        }
+
+        socket_close($socket);
     }
 }
