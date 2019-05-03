@@ -46,7 +46,7 @@ class Recorder
         return $segment;
     }
 
-    public function beginSubsegment(Segment $segment, string $name): Segment
+    public function beginSubsegment(Segment $segment, string $name): SubSegment
     {
         return Segment::createFromParent($segment, (string) $name);
     }
@@ -66,7 +66,7 @@ class Recorder
         return count($this->segments) === 0 ? null : end($this->segments);
     }
 
-    public function getCurrentSubsegment(): ?Segment
+    public function getCurrentSubsegment(): ?SubSegment
     {
         $currentSubsegment = $this->getCurrentSegment();
         if ($currentSubsegment === null) {
